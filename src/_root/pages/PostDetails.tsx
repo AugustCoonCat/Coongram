@@ -54,7 +54,7 @@ const PostDetails = () => {
               <div className="flex-center ">
                 <Link
                   to={`/update-post/${post?.$id}`}
-                  className={`${user.id !== post?.creator.$id} && 'hidden'`}
+                  className={`${user!.id !== post?.creator.$id} && 'hidden'`}
                 >
                   <img
                     src="/public/assets/icons/edit.svg"
@@ -68,7 +68,7 @@ const PostDetails = () => {
                   onClick={handleDeletePost}
                   variant="ghost"
                   className={`ghost_details-delete_btn ${
-                    user.id !== post?.creator.$id
+                    user!.id !== post?.creator.$id
                   } && 'hidden'`}
                 >
                   <img
@@ -95,7 +95,7 @@ const PostDetails = () => {
               </ul>
             </div>
             <div className="w-full ">
-              <PostStats post={post} userId={user.id} />
+              <PostStats post={post} userId={user!.id} />
             </div>
           </div>
         </div>

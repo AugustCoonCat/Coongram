@@ -1,6 +1,7 @@
 import { INewPost, INewUser, IUpdatePost } from "@/types";
 import { ID, Query } from "appwrite";
 import { account, appwriteConfig, avatars, databases, storage } from "./config";
+import { normalizePost } from "@/lib/normalizers/post";
 
 export async function createUserAccount(user: INewUser) {
   try {
@@ -92,18 +93,15 @@ export async function signOutAccount() {
 
 export async function createPost(post: INewPost) {
   try {
-    // Upload image to storage
     const uploadedFile = await uploadFile(post.file);
     if (!uploadedFile) throw new Error("Upload failed");
 
-    // Get file url
     const fileUrl = await getFilePreview(uploadedFile.$id);
     if (!fileUrl || typeof fileUrl !== "string") {
       await deleteFile(uploadedFile.$id);
       throw new Error("Invalid file URL");
     }
 
-    // Normalize tags
     let tags: string[] = [];
     if (Array.isArray(post.tags)) {
       tags = post.tags.map((t) => t.trim());
@@ -111,16 +109,9 @@ export async function createPost(post: INewPost) {
       tags = post.tags.split(",").map((t) => t.trim());
     }
 
-    // --------- NORMALIZE creator -------------
+
     let creatorId: string | undefined;
 
-    // possibilities:
-    // - post.creator === "someUserDocId"
-    // - post.creator === { $id: "someUserDocId" }
-    // - post.creator === "acc_xxx" (accountId) -- we need to map it to user doc id
-    // - post.userId or post.userAccountId (older variants) might exist
-
-    // try direct fields first
     if (typeof post.creator === "string") {
       creatorId = post.creator;
     } else if (
@@ -133,7 +124,6 @@ export async function createPost(post: INewPost) {
       creatorId = post.userId;
     }
 
-    // if creatorId looks like an accountId (heuristic) or we don't have user doc id, try to find user by accountId
     if (!creatorId && post.accountId && typeof post.accountId === "string") {
       const userList = await databases.listDocuments(
         appwriteConfig.databaseId,
@@ -143,7 +133,6 @@ export async function createPost(post: INewPost) {
       if (userList?.documents?.length) creatorId = userList.documents[0].$id;
     }
 
-    // Heuristic: if creatorId starts with "acc_" or "account_" treat it as accountId and map it
     if (creatorId && creatorId.startsWith("acc")) {
       const userList = await databases.listDocuments(
         appwriteConfig.databaseId,
@@ -151,10 +140,8 @@ export async function createPost(post: INewPost) {
         [Query.equal("accountId", [creatorId]), Query.limit(1)]
       );
       if (userList?.documents?.length) creatorId = userList.documents[0].$id;
-      // else leave it — we'll let Appwrite error out, but we logged attempt
     }
 
-    // last safety: log if still not resolved
     if (!creatorId) {
       console.warn(
         "createPost: creatorId not resolved. incoming:",
@@ -162,7 +149,6 @@ export async function createPost(post: INewPost) {
         post.userId,
         post.accountId
       );
-      // decide: reject or allow null creator? Better to reject:
       await deleteFile(uploadedFile.$id);
       throw new Error(
         "Creator ID not provided or could not be resolved to a user document."
@@ -171,7 +157,6 @@ export async function createPost(post: INewPost) {
 
     console.log("createPost: resolved creatorId =", creatorId);
 
-    // Save post to database — pass creatorId as string
     const newPost = await databases.createDocument(
       appwriteConfig.databaseId,
       appwriteConfig.postCollectionId,
@@ -219,7 +204,7 @@ export async function getFilePreview(
       bucketId: appwriteConfig.storageId,
       fileId,
     });
-    return fileUrl; // просто возвращаем строку
+    return fileUrl; 
   } catch (error) {
     console.log("getFilePreview error:", error);
     return undefined;
@@ -243,34 +228,40 @@ export async function getRecentPosts() {
       [Query.orderDesc("$createdAt"), Query.limit(20)]
     );
 
-    // Appwrite не тянет связанные документы автоматически.
-    // Придётся руками получить инфу о пользователе.
-    const postsWithCreators = await Promise.all(
-      response.documents.map(async (post) => {
+    const creatorIds = Array.from(
+      new Set(
+        response.documents
+          .map((p: any) => (p?.creator && typeof p.creator === "string" ? p.creator : p?.creator?.$id))
+          .filter(Boolean)
+      )
+    );
+
+    const creatorsMap = new Map<string, any>();
+    await Promise.all(
+      creatorIds.map(async (id) => {
         try {
-          const creator = await databases.getDocument(
+          const userDoc = await databases.getDocument(
             appwriteConfig.databaseId,
             appwriteConfig.userCollectionId,
-            post.creator // тут строка с userId
+            id
           );
-
-          return {
-            ...post,
-            creator, // теперь полноценный объект
-          };
+          creatorsMap.set(id, userDoc);
         } catch {
-          // fallback для случаев, когда юзер удалён
-          return {
-            ...post,
-            creator: {
-              $id: "unknown",
-              name: "Unknown User",
-              imageUrl: "/public/assets/icons/profile-placeholder.svg",
-            },
-          };
+          // ignore missing creators
         }
       })
     );
+
+    const postsWithCreators = response.documents.map((post: any) => {
+      const creatorId = post?.creator && typeof post.creator === "string" ? post.creator : post?.creator?.$id;
+      const creator = (creatorId && creatorsMap.get(creatorId)) || post.creator || {
+        $id: "unknown",
+        name: "Unknown User",
+        imageUrl: "/assets/icons/profile-placeholder.svg",
+      };
+
+      return normalizePost({ ...post, creator });
+    });
 
     return { documents: postsWithCreators };
   } catch (error) {
@@ -280,51 +271,51 @@ export async function getRecentPosts() {
 }
 
 export async function likePost(postId: string, likesArray: string[]) {
+  if (!postId) throw new Error("Post ID required");
   try {
     const updatedPost = await databases.updateDocument(
       appwriteConfig.databaseId,
       appwriteConfig.postCollectionId,
       postId,
-      {
-        likes: likesArray,
-      }
+      { likes: likesArray }
     );
-    if (!updatedPost) throw Error;
+    if (!updatedPost) throw new Error("Failed to update likes");
     return updatedPost;
   } catch (error) {
-    console.log(error);
+    console.error("likePost error:", error);
+    throw error;
   }
 }
 
 export async function savePost(postId: string, userId: string) {
+  if (!postId || !userId) throw new Error("Post ID and User ID required");
   try {
-    const updatedPost = await databases.createDocument(
+    const newSave = await databases.createDocument(
       appwriteConfig.databaseId,
       appwriteConfig.savesCollectionId,
       ID.unique(),
-      {
-        user: userId,
-        post: postId,
-      }
+      { user: userId, post: postId }
     );
-    if (!updatedPost) throw Error;
-    return updatedPost;
+    if (!newSave) throw new Error("Failed to save post");
+    return newSave;
   } catch (error) {
-    console.log(error);
+    console.error("savePost error:", error);
+    throw error;
   }
 }
 
 export async function deleteSavedPost(savedRecordId: string) {
+  if (!savedRecordId) throw new Error("Saved record ID required");
   try {
-    const statusCode = await databases.deleteDocument(
+    await databases.deleteDocument(
       appwriteConfig.databaseId,
       appwriteConfig.savesCollectionId,
       savedRecordId
     );
-    if (!statusCode) throw Error;
     return { status: "ok" };
   } catch (error) {
-    console.log(error);
+    console.error("deleteSavedPost error:", error);
+    throw error;
   }
 }
 
@@ -335,42 +326,44 @@ export async function getSavedPosts() {
       appwriteConfig.savesCollectionId,
       [Query.orderDesc("$createdAt")]
     );
-
-    return response.documents; // массив объектов: { $id, user, post }
+    return response.documents; 
   } catch (error) {
-    console.error("Error fetching saved posts:", error);
+    console.error("getSavedPosts error:", error);
     throw error;
   }
 }
 
 export async function getPostById(postId: string) {
   try {
-    // Получаем сам пост
     const post = await databases.getDocument(
       appwriteConfig.databaseId,
       appwriteConfig.postCollectionId,
       postId
     );
 
-    // Если в посте есть ID автора — тянем его отдельно
-    if (post?.creator) {
-      const creator = await databases.getDocument(
-        appwriteConfig.databaseId,
-        appwriteConfig.userCollectionId,
-        post.creator
-      );
+    if (!post) return null;
 
-      return { ...post, creator };
+    let creatorObj = post.creator;
+    try {
+      const creatorId = post?.creator && typeof post.creator === "string" ? post.creator : post?.creator?.$id;
+      if (creatorId) {
+        creatorObj = await databases.getDocument(
+          appwriteConfig.databaseId,
+          appwriteConfig.userCollectionId,
+          creatorId
+        );
+      }
+    } catch {
+      creatorObj = { $id: "unknown", name: "Unknown User", imageUrl: "/assets/icons/profile-placeholder.svg" };
     }
 
-    return post;
+    return normalizePost({ ...post, creator: creatorObj });
   } catch (error) {
     console.log("Ошибка при получении поста:", error);
   }
 }
 
 export async function updatePost(post: IUpdatePost) {
-  // Проверяем, есть ли файлы для обновления
   const hasFileToUpdate =
     post.file !== undefined &&
     (Array.isArray(post.file) ? post.file.length > 0 : true);
@@ -382,14 +375,11 @@ export async function updatePost(post: IUpdatePost) {
     };
 
     if (hasFileToUpdate) {
-      // Обработка файла в зависимости от типа
       let fileToUpload: File;
 
       if (Array.isArray(post.file)) {
-        // Если это массив файлов, берем первый элемент
         fileToUpload = post.file[0];
       } else {
-        // Если это один файл
         fileToUpload = post.file;
       }
 
@@ -461,7 +451,7 @@ export async function getInfinitePosts({
     const queries: any[] = [
       Query.orderDesc("$updatedAt"),
       Query.limit(10),
-      Query.select(["*", "creator.*"]), // <- подтягиваем creator поля
+      Query.select(["*", "creator.*"]), 
     ];
 
     if (pageParam) {
@@ -489,7 +479,7 @@ export async function searchPosts(searchTerm: string) {
       appwriteConfig.postCollectionId,
       [
         Query.search("caption", searchTerm),
-        Query.select(["*", "creator.*"]), // <- тоже
+        Query.select(["*", "creator.*"]), 
       ]
     );
 

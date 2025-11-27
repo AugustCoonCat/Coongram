@@ -1,16 +1,18 @@
 import { Outlet, Navigate } from "react-router-dom";
-import { useUserContext } from "@/context/AuthContext"; 
+import { useUserContext } from "@/context/AuthContext";
 
 const AuthLayout = () => {
   const { user, isLoading } = useUserContext();
 
-  if (isLoading) return <div>Loading...</div>; 
+  if (isLoading) return <div>Loading...</div>;
 
-  const isAuthenticated = !!user?.id; // true, если пользователь залогинен
+  const isAuthenticated = !!user?.id;
 
-  return isAuthenticated ? <Navigate to="/" /> : (
+  return isAuthenticated ? (
+    <Navigate to="/" />
+  ) : (
     <>
-      <section className="flex flex-1 justify-center items-center flex-col py-10 ">
+      <section className="flex flex-1 justify-center items-center flex-col py-10">
         <Outlet />
       </section>
       <img

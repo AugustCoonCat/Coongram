@@ -6,7 +6,6 @@ const client = new Client()
 
 const databases = new Databases(client);
 
-// Получаем userId из авторизации (например, через auth.currentUser)
 const getUserId = async () => {
   const account = new Account(client);
   const user = await account.get();
@@ -17,8 +16,7 @@ export const appwriteService = {
   async likePost(postId: string) {
     const userId = await getUserId();
 
-    // Проверяем, есть ли уже лайк от этого пользователя
-    const likesCollectionId = 'likes'; // ID коллекции лайков
+    const likesCollectionId = 'likes'; 
     const result = await databases.listDocuments(
       'your-database-id',
       likesCollectionId,
@@ -26,14 +24,14 @@ export const appwriteService = {
     );
 
     if (result.documents.length > 0) {
-      // Лайк уже есть → удаляем
+      
       await databases.deleteDocument(
         'your-database-id',
         likesCollectionId,
         result.documents[0].$id
       );
     } else {
-      // Лайка нет → добавляем
+      
       await databases.createDocument(
         'your-database-id',
         likesCollectionId,

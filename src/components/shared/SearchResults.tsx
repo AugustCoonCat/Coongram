@@ -23,7 +23,6 @@ const SearchResults = ({
   if (isSearchFetching) return <Loader />;
 
   if (searchedPosts.length > 0) {
-    // Normalize tags to string[] to satisfy GridPostList typing
     const normalized = searchedPosts.map((p) => ({
       ...p,
       tags: Array.isArray(p.tags)

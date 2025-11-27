@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { Input } from "@/components/ui/input";
-import { SigninValidation } from "@/lib/validation"; 
+import { SigninValidation } from "@/lib/validation";
 import { z } from "zod";
 import Loader from "@/components/shared/Loader";
 import { Link, useNavigate } from "react-router-dom";
@@ -26,7 +26,6 @@ const SigninForm = () => {
   const { mutateAsync: signInAccount, isPending: isSigningIn } =
     useSignInAccount();
 
-  // 1. Настройка формы
   const form = useForm<z.infer<typeof SigninValidation>>({
     resolver: zodResolver(SigninValidation),
     defaultValues: {
@@ -35,34 +34,37 @@ const SigninForm = () => {
     },
   });
 
-  // 2. Обработчик submit
- async function onSubmit(values: z.infer<typeof SigninValidation>) {
-  try {
-    await signInAccount({
-      email: values.email,
-      password: values.password,
-    });
+  async function onSubmit(values: z.infer<typeof SigninValidation>) {
+    try {
+      await signInAccount({
+        email: values.email,
+        password: values.password,
+      });
 
-    const isLoggedIn = await checkAuthUser();
+      const isLoggedIn = await checkAuthUser();
 
-    if (isLoggedIn) {
-      form.reset();
-      navigate("/");
-      toast.success("Signed in successfully!");
-    } else {
+      if (isLoggedIn) {
+        form.reset();
+        navigate("/");
+        toast.success("Signed in successfully!");
+      } else {
+        toast.error("Sign in failed. Please try again.");
+      }
+    } catch (error) {
       toast.error("Sign in failed. Please try again.");
+      console.error(error);
     }
-  } catch (error) {
-    toast.error("Sign in failed. Please try again.");
-    console.error(error);
   }
-}
 
   return (
     <Form {...form}>
       <div className="sm:w-420 flex-center flex-col ">
         <div className="flex justify-start">
-          <img className="w-20 h-20" src="/public/assets/images/Logo.png" alt="logo" />
+          <img
+            className="w-20 h-20"
+            src="/public/assets/images/Logo.png"
+            alt="logo"
+          />
           <h1 className="text-3xl font-bold ml-1 pt-5">Coongram</h1>
         </div>
 

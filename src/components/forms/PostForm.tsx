@@ -49,62 +49,61 @@ const PostForm = ({ post, action }: PostFormProps) => {
   });
 
   const handleSubmit = async (values: z.infer<typeof PostValidation>) => {
-  // Проверяем файл только если это создание поста
-  if (action === "Create" && !values.file) {
-    toast.error("Image is required");
-    return;
-  }
-
-  try {
-    const currentUser = await getCurrentUser();
-
-    if (!currentUser) {
-      toast.error("User not found. Please log in again.");
+    if (action === "Create" && !values.file) {
+      toast.error("Image is required");
       return;
     }
 
-    const payload = {
-      caption: values.caption,
-      file: values.file || post?.imageUrl, // используем старое фото если не меняем
-      location: values.location,
-      tags: values.tags
-        .split(",")
-        .map((tag) => tag.trim())
-        .filter((tag) => tag !== ""),
-      creator: currentUser.$id,
-    };
+    try {
+      const currentUser = await getCurrentUser();
 
-    if (post && action === "Update") {
-      const updatedPost = await updatePost({
-        ...values,
-        postId: post.$id,
-        imageId: post?.imageId,
-        imageUrl: post?.imageUrl,
-      });
-
-      if (!updatedPost) {
-        toast.error("Post update failed. Please try again.");
-      } else {
-        toast.success("Post updated!");
+      if (!currentUser) {
+        toast.error("User not found. Please log in again.");
+        return;
       }
 
-      return navigate(`/posts/${post.$id}`);
+      const payload = {
+        caption: values.caption,
+        file: values.file || post?.imageUrl,
+        location: values.location,
+        tags: values.tags
+          .split(",")
+          .map((tag) => tag.trim())
+          .filter((tag) => tag !== ""),
+        creator: currentUser.$id,
+      };
+
+      if (post && action === "Update") {
+        const updatedPost = await updatePost({
+          ...values,
+          postId: post.$id,
+          imageId: post?.imageId,
+          imageUrl: post?.imageUrl,
+        });
+
+        if (!updatedPost) {
+          toast.error("Post update failed. Please try again.");
+        } else {
+          toast.success("Post updated!");
+        }
+
+        return navigate(`/posts/${post.$id}`);
+      }
+
+      const newPost = await createPost(payload);
+
+      if (!newPost) {
+        toast.error("Post creation failed. Please try again.");
+        return;
+      }
+
+      toast.success("Post created!");
+      navigate("/");
+    } catch (err) {
+      console.error("Post creation error:", err);
+      toast.error("Something went wrong. Please try again.");
     }
-
-    const newPost = await createPost(payload);
-
-    if (!newPost) {
-      toast.error("Post creation failed. Please try again.");
-      return;
-    }
-
-    toast.success("Post created!");
-    navigate("/");
-  } catch (err) {
-    console.error("Post creation error:", err);
-    toast.error("Something went wrong. Please try again.");
-  }
-};
+  };
 
   return (
     <Form {...form}>
@@ -192,8 +191,7 @@ const PostForm = ({ post, action }: PostFormProps) => {
           <Button
             type="submit"
             className="shad-button_primary whitespace-nowrap"
-            disabled={ isLoadingUpdate}
-
+            disabled={isLoadingUpdate}
           >
             {isLoadingUpdate && "Loading..."}
             {action} Post

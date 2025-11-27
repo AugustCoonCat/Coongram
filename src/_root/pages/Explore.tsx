@@ -11,7 +11,6 @@ import { Models } from "appwrite";
 import { useState, useEffect } from "react";
 import { useInView } from "react-intersection-observer";
 
-// Тип поста с creator
 type DocumentWithCreator = Models.Document & {
   creator?: { $id: string; name: string; imageUrl?: string };
   location?: string;
@@ -23,8 +22,6 @@ type DocumentWithCreator = Models.Document & {
 
 const Explore = () => {
   const { ref, inView } = useInView();
-
-  // Основные посты
   const { data: postsData, fetchNextPage, hasNextPage } = useGetPosts();
   const posts = postsData as unknown as
     | {
@@ -32,27 +29,24 @@ const Explore = () => {
       }
     | undefined;
 
-  // Поиск
   const [searchValue, setSearchValue] = useState("");
   const debouncedValue = useDebounce(searchValue, 500);
   const { data: searchData, isFetching: isSearchFetching } =
     useSearchPosts(debouncedValue);
- const searchedPosts: DocumentWithCreator[] =
-  searchData?.documents?.map((post) => ({
-    ...post,
-    caption: post.caption || "",
-    imageUrl: post.imageUrl || "",
-    creator: post.creator || { $id: "unknown", name: "Unknown" },
-    likes: Array.isArray(post.likes) ? post.likes : [],
-    tags: Array.isArray(post.tags) ? post.tags : [],
-  })) || [];
+  const searchedPosts: DocumentWithCreator[] =
+    searchData?.documents?.map((post) => ({
+      ...post,
+      caption: post.caption || "",
+      imageUrl: post.imageUrl || "",
+      creator: post.creator || { $id: "unknown", name: "Unknown" },
+      likes: Array.isArray(post.likes) ? post.likes : [],
+      tags: Array.isArray(post.tags) ? post.tags : [],
+    })) || [];
 
-  // Подгрузка новых страниц при скролле
   useEffect(() => {
     if (inView && !searchValue) fetchNextPage?.();
   }, [inView, searchValue, fetchNextPage]);
 
-  // Лоадер пока нет данных
   if (!posts) {
     return (
       <div className="flex-center w-full h-full">

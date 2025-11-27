@@ -20,14 +20,11 @@ export default defineConfig([
       globals: globals.browser,
     },
     rules: {
-      // неиспользуемые переменные — только предупреждение
       'no-unused-vars': 'off',
       '@typescript-eslint/no-unused-vars': ['warn'],
 
-      // убираем залипание на тип any
       '@typescript-eslint/no-explicit-any': 'off',
 
-      // иногда eslint бесится из-за React Refresh
       'react-refresh/only-export-components': 'off',
     },
   },

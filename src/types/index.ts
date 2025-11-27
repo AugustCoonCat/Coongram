@@ -1,12 +1,12 @@
 import { Models } from "appwrite";
 
 export type IContextType = {
-  user: IUser;
-  setUser: (user: IUser) => void;
+  user: IUser | null;
+  setUser: React.Dispatch<React.SetStateAction<IUser | null>>;
   isLoading: boolean;
   isAuthenticated: boolean;
-  setIsAuthenticated: (auth: boolean) => void;
   checkAuthUser: () => Promise<boolean>;
+  setIsAuthenticated?: React.Dispatch<React.SetStateAction<boolean>>;
 };
 
 export type INavLink = {
@@ -51,7 +51,7 @@ export type IUser = {
   name: string;
   username: string;
   email: string;
-  imageUrl: string;
+imageUrl: string | null;
   bio: string;
 };
 
@@ -81,4 +81,19 @@ export type INewPostPayload = {
   location?: string;
   tags?: string[] | string;
   creator: string; 
+};
+
+export type NormalizedCreator = {
+  $id: string;
+  name: string;
+  imageUrl?: string;
+};
+
+export type NormalizedPost = Models.Document & {
+  caption: string;
+  imageUrl: string;
+  location?: string;
+  tags: string[];
+  likes: string[];
+  creator: NormalizedCreator;
 };

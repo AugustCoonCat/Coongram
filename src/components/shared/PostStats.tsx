@@ -1,4 +1,5 @@
 import { Models } from "appwrite";
+import { NormalizedPost } from "@/lib/normalizers/post";
 import { useState, useEffect } from "react";
 import { useLocation } from "react-router-dom";
 import { checkIsLiked } from "@/lib/utils";
@@ -10,12 +11,12 @@ import {
 } from "@/lib/react-query/queriesAndMutations";
 
 type PostStatsProps = {
-  post?: Models.Document;
+  post?: Models.Document | NormalizedPost | null;
   userId: string;
 };
 
 type PostDoc = Models.Document & {
-  likes?: { $id: string }[];
+  likes?: { $id: string }[] | string[];
 };
 
 type SaveRecord = Models.Document & {
@@ -25,8 +26,10 @@ type SaveRecord = Models.Document & {
 const PostStats = ({ post, userId }: PostStatsProps) => {
   const location = useLocation();
 
-  // безопасно обрабатываем отсутствие лайков
-  const likesList = (post as PostDoc)?.likes?.map((user) => user.$id) || [];
+  const rawLikes = (post as PostDoc)?.likes || [];
+  const likesList = Array.isArray(rawLikes)
+    ? (rawLikes as string[]).map((l) => (typeof l === "string" ? l : (l as any).$id))
+    : [];
 
   const [likes, setLikes] = useState<string[]>(likesList);
   const [isSaved, setIsSaved] = useState(false);
@@ -42,7 +45,7 @@ const PostStats = ({ post, userId }: PostStatsProps) => {
 
   useEffect(() => {
     setIsSaved(!!savedPostRecord);
-  }, [currentUser]);
+  }, [currentUser, savedPostRecord]);
 
   const handleLikePost = (
     e: React.MouseEvent<HTMLImageElement, MouseEvent>

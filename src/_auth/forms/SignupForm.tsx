@@ -32,7 +32,6 @@ const SignupForm = () => {
   const { mutateAsync: signInAccount, isPending: isSigningIn } =
     useSignInAccount();
 
-  // 1. Define your form.
   const form = useForm<z.infer<typeof SignupValidation>>({
     resolver: zodResolver(SignupValidation),
     defaultValues: {
@@ -43,7 +42,6 @@ const SignupForm = () => {
     },
   });
 
-  // 2. Define a submit handler.
   async function onSubmit(values: z.infer<typeof SignupValidation>) {
     const newUser = await createUserAccount(values);
     if (!newUser) {
@@ -64,7 +62,6 @@ const SignupForm = () => {
 
     if (isLoggedIn) {
       form.reset();
-
       navigate("/");
     } else {
       return toast.error("Sign in failed. Pleast try again.");
@@ -74,7 +71,11 @@ const SignupForm = () => {
     <Form {...form}>
       <div className="sm:w-420 flex-center flex-col ">
         <div className="flex justify-start">
-          <img className="w-20 h-20" src="/public/assets/images/Logo.png" alt="logo" />
+          <img
+            className="w-20 h-20"
+            src="/public/assets/images/Logo.png"
+            alt="logo"
+          />
           <h1 className="text-3xl font-bold ml-1 pt-5">Coongram</h1>
         </div>
 
@@ -166,4 +167,3 @@ const SignupForm = () => {
 };
 
 export default SignupForm;
-

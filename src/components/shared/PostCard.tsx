@@ -23,7 +23,7 @@ type PostCardProps = {
 const PostCard = ({ post }: PostCardProps) => {
   const { user } = useUserContext();
 
-  if (!post.creator) return;
+   if (!post.creator) return null;
 
   return (
     <div className="post-card">
@@ -56,7 +56,7 @@ const PostCard = ({ post }: PostCardProps) => {
         </div>
 
         <Link
-          className={`${user.id !== post.creator.$id && "hidden"}`}
+          className={`${user!.id !== post.creator.$id && "hidden"}`}
           to={`/update-post/${post.$id}`}
         >
           <img src="/public/assets/icons/edit.svg" alt="edit" width={20} height={20} />
@@ -83,7 +83,7 @@ const PostCard = ({ post }: PostCardProps) => {
         />
       </Link>
 
-      <PostStats post={post} userId={user.id}/>
+      <PostStats post={post} userId={user!.id}/>
     </div>
   );
 };

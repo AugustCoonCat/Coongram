@@ -7,8 +7,12 @@ import SignupForm from "./_auth/forms/SignupForm";
 import AuthLayout from "./_auth/AuthLayout";
 import RootLayout from "./_root/RootLayout";
 import { Toaster } from "@/components/ui/sonner";
+import { useUserContext } from "./context/AuthContext";
+import Loader from "./components/shared/Loader";
 
 const App: React.FC = () => {
+  const {isLoading} = useUserContext();
+    if (isLoading) return <Loader />;
   return (
     <main className="flex h-screen">
       <Routes>
