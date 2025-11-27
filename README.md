@@ -14,13 +14,13 @@
 
 ## 💻 Скриншоты
 ### Главная страница
-![Home](public/images/Home.png)
+![Home](public/assets/images/Home.png)
 
 ### Эксплор (поиск/лента)
-![Explore](public/images/Explore.png)
+![Explore](public/assets/images/Explore.png)
 
 ### Создание поста
-![Create](public/images/Create.png)
+![Create](public/assets/images/Create.png)
 
 ---
 
